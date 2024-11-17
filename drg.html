@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Подземелье и Драконы</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1a1a1a;
+      color: #f0f0f0;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #555;
+    }
+    #game-output {
+      margin: 20px 0;
+      font-size: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Подземелье и Драконы</h1>
+  <div id="game-output"></div>
+  <div id="actions"></div>
+
+  <script>
+    const gameState = {
+      health: 100,
+      treasure: 0,
+      position: "entrance",
+      inventory: [],
+    };
+
+    const actions = {
+      entrance: [
+        { text: "Идти направо", nextPosition: "trapRoom" },
+        { text: "Идти налево", nextPosition: "treasureRoom" },
+        { text: "Прямо к дракону!", nextPosition: "dragonRoom" },
+        { text: "Исследовать странный туннель", nextPosition: "mysteryCave" },
+      ],
+      trapRoom: [
+        { text: "Обезвредить ловушку", effect: () => gameState.health -= 50, nextPosition: "entrance" },
+        { text: "Искать другой выход", nextPosition: "hiddenPassage" },
+        { text: "Вернуться назад", nextPosition: "entrance" },
+      ],
+      treasureRoom: [
+        { text: "Собрать сокровища", effect: () => gameState.treasure += 50, nextPosition: "entrance" },
+        { text: "Открыть загадочный сундук", effect: () => {
+            if (Math.random() > 0.5) {
+              gameState.treasure += 100;
+            } else {
+              gameState.health -= 30;
+            }
+          }, nextPosition: "entrance" },
+        { text: "Вернуться назад", nextPosition: "entrance" },
+      ],
+      dragonRoom: [
+        { text: "Сражаться с драконом", effect: () => gameState.health -= 70, nextPosition: "end" },
+        { text: "Попытаться убежать", nextPosition: "entrance" },
+        { text: "Попробовать договориться", effect: () => {
+            if (Math.random() > 0.5) {
+              gameState.treasure += 200;
+            } else {
+              gameState.health -= 50;
+            }
+          }, nextPosition: "end" },
+      ],
+      mysteryCave: [
+        { text: "Идти глубже в пещеру", nextPosition: "ancientShrine" },
+        { text: "Вернуться к входу", nextPosition: "entrance" },
+      ],
+      ancientShrine: [
+        { text: "Помолиться у алтаря", effect: () => gameState.health += 30, nextPosition: "entrance" },
+        { text: "Исследовать руины", effect: () => {
+            gameState.treasure += 30;
+            gameState.inventory.push("Амулет силы");
+          }, nextPosition: "entrance" },
+        { text: "Вернуться к пещере", nextPosition: "mysteryCave" },
+      ],
+      hiddenPassage: [
+        { text: "Идти по туннелю", nextPosition: "spiderNest" },
+        { text: "Вернуться в ловушечную комнату", nextPosition: "trapRoom" },
+      ],
+      spiderNest: [
+        { text: "Сражаться с пауками", effect: () => gameState.health -= 40, nextPosition: "treasureRoom" },
+        { text: "Идти тихо", nextPosition: "treasureRoom" },
+      ],
+      end: [
+        { text: "Начать заново", reset: true },
+      ],
+    };
+
+    const positions = {
+      entrance: "Вы у входа в мрачное подземелье. Перед вами несколько путей.",
+      trapRoom: "Вы оказались в комнате, полной ловушек. Что будете делать?",
+      treasureRoom: "Вы вошли в комнату, наполненную блестящими сокровищами.",
+      dragonRoom: "Перед вами появляется огромный дракон! Что будете делать?",
+      mysteryCave: "Вы видите загадочную пещеру. Она кажется древней и опасной.",
+      ancientShrine: "Вы наткнулись на древнее святилище. Оно излучает мощь.",
+      hiddenPassage: "Тайный проход ведет вас в неизвестность.",
+      spiderNest: "Вы попали в логово гигантских пауков. Они уже заметили вас!",
+      end: () => {
+        if (gameState.health <= 0) {
+          return "Вы погибли! Хотите попробовать еще раз?";
+        } else if (gameState.treasure > 0) {
+          return `Вы выбрались с сокровищами на сумму ${gameState.treasure} золотых монет и снаряжением: ${gameState.inventory.join(", ")}. Победа!`;
+        } else {
+          return "Вы сбежали ни с чем. Конец.";
+        }
+      },
+    };
+
+    function renderGame() {
+      const output = document.getElementById("game-output");
+      const actionsContainer = document.getElementById("actions");
+
+      if (typeof positions[gameState.position] === "function") {
+        output.textContent = positions[gameState.position]();
+        if (gameState.health <= 0) {
+          actionsContainer.innerHTML = `
+            <p><b>Вы погибли!</b></p>
+            <button onclick="window.location.reload()">Перезапустить</button>
+          `;
+          return;
+        }
+      } else {
+        output.textContent = positions[gameState.position];
+      }
+
+      actionsContainer.innerHTML = "";
+      (actions[gameState.position] || []).forEach((action) => {
+        const button = document.createElement("button");
+        button.textContent = action.text;
+        button.onclick = () => {
+          if (action.effect) action.effect();
+          if (action.reset) {
+            gameState.health = 100;
+            gameState.treasure = 0;
+            gameState.inventory = [];
+          }
+          gameState.position = action.nextPosition;
+          renderGame();
+        };
+        actionsContainer.appendChild(button);
+      });
+    }
+
+    renderGame();
+  </script>
+</body>
+</html>
